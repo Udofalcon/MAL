@@ -301,12 +301,14 @@ function updateDisplay(list) {
             if (item.related && item.aired && item.aired.from) {
                 Object.keys(item.related).forEach(type => {
                     item.related[type].forEach(t => {
-                        if (animeById[t.mal_id] && animeById[t.mal_id].aired && animeById[t.mal_id].aired.from) {
-                            if (new Date(animeById[t.mal_id].aired.from) < new Date(item.aired.from)) {
-                                preReqs.push(animeById[t.mal_id]);
+                        if (t.type === "anime") {
+                            if (animeById[t.mal_id] && animeById[t.mal_id].aired && animeById[t.mal_id].aired.from) {
+                                if (new Date(animeById[t.mal_id].aired.from) < new Date(item.aired.from)) {
+                                    preReqs.push(animeById[t.mal_id]);
+                                }
+                            } else if (!animeById[t.mal_id] || !animeById[t.mal_id].error) {
+                                pushTodo(['getAnime', t.mal_id]);
                             }
-                        } else if (!animeById[t.mal_id] || !animeById[t.mal_id].error) {
-                            pushTodo(['getAnime', t.mal_id]);
                         }
                     });
                 });
@@ -344,7 +346,20 @@ function updateDisplay(list) {
 
 function checkChallenges(item) {
     item.challenges = {};
-    if (item.type === 'ONA') item.challenges['Bronze 1'] = true;
+    challenges = {
+        'Bronze 1': [],
+        'Bronze 2': []
+    };
+    if (item.type === 'ONA') { item.challenges['Bronze 1'] = true; challenges['Bronze 1'].push(item.mal_id); }
+    if (item.episodes >= 10 && getDuration(item.duration) / 60 <= 15) { item.challenges['Bronze 2'] = true; challenges['Bronze 2'].push(item.mal_id); }
+}
+
+function getDuration (str) {
+    var hr = parseInt(str.match(/\d+ hr/) || 0);
+    var min = parseInt(str.match(/\d+ min/) || 0);
+    var sec = parseInt(str.match(/\d+ sec/) || 0);
+    
+    return (hr * 60 + min) * 60 + sec;
 }
 
 function pushTodo(item) {
