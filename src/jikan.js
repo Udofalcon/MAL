@@ -9,10 +9,20 @@ module.exports = function (data, res, cache) {
     switch(data.type) {
         case 'anime':
             findAnime([data.id, data.request, data.page])
+                .catch(e => {
+                    console.log('Error: ', url.href);
+                    
+                    return { error: e };
+                })
                 .then(then);
             break;
         case 'user':
             findUser([data.username, data.request, data.data], data.params)
+                .catch(e => {
+                    console.log('Error: ', url.href);
+                    
+                    return { error: e };
+                })
                 .then(then);
             break;
     }
@@ -38,8 +48,6 @@ module.exports = function (data, res, cache) {
             return Promise.delay(delay)
                 .then(() => {
                     return jikan.findAnime(args[0], args[1], args[2]);
-                }).catch((e) => {
-                    console.log(e);
                 });
         }
     }
@@ -64,8 +72,6 @@ module.exports = function (data, res, cache) {
             return Promise.delay(delay)
                 .then(() => {
                     return jikan.findUser(args[0], args[1], args[2], param);
-                }).catch((e) => {
-                    console.log(e);
                 });
         }
     }

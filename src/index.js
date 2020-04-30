@@ -43,6 +43,7 @@ function next(arg) {
         
         try {
             window[func](...active);
+            done.push([func, ...active]);
         } catch (e) {
             todo.unshift(active);
             active = undefined;
@@ -70,7 +71,7 @@ function getAnime(id) {
         var index = curr && anime.indexOf(curr) || -1;
         
         if (index === -1) {
-            anime.push(curr);
+            anime.push(data);
         } else {
             anime[index] = { ...anime[index], ...data };
             animeById[data.mal_id] = anime[index];
@@ -101,10 +102,6 @@ function getUserData() {
             data.anime.forEach(a => {
                 anime.push(a);
                 animeById[a.mal_id] = a;
-                
-                /*if (a.airing_status === 2 && !a.rank && a.watching_status === 6) {
-                    pushTodo(['getAnime', a.mal_id]);
-                }*/
             });
             
             if (data.anime.length === 300) {
@@ -211,7 +208,7 @@ function updateDisplay(list) {
     
     table.appendChild(tbody);
     
-    list.filter(i => i.watching_status !== 2 && i.rank !== null).forEach((item, index) => {
+    list.filter(i => i.watching_status !== 2 && i.rank !== null && !i.error).forEach((item, index) => {
         var itemStatus = item.watching_status === 1 ? 'Watching'
             : item.watching_status === 2 ? 'Completed'
             : item.watching_status === 3 ? 'On-Hold'
@@ -294,15 +291,45 @@ function updateDisplay(list) {
         td5.style.verticalAlign = 'middle';
         td5.style.wordWrap = 'break-word';
         
-        var ol = document.createElement('ol');
+        var ul = document.createElement('ul');
+        
+        td5.appendChild(ul);
         
         if (Object.keys(item.challenges).length) {
-            var preReqs = 0;
+            var preReqs = [];
             
-            if (item.related) {
+            if (item.related && item.aired && item.aired.from) {
                 Object.keys(item.related).forEach(type => {
-                    
+                    item.related[type].forEach(t => {
+                        if (animeById[t.mal_id] && animeById[t.mal_id].aired && animeById[t.mal_id].aired.from) {
+                            if (new Date(animeById[t.mal_id].aired.from) < new Date(item.aired.from)) {
+                                preReqs.push(animeById[t.mal_id]);
+                            }
+                        } else if (!animeById[t.mal_id] || !animeById[t.mal_id].error) {
+                            pushTodo(['getAnime', t.mal_id]);
+                        }
+                    });
                 });
+                
+                if (preReqs.length) {
+                    preReqs.forEach(i => {
+                        ul.style.backgroundColor = '#FAA';
+                        
+                        var li = document.createElement('li');
+                        
+                        ul.appendChild(li);
+                        li.innerText = i.title;
+                    });
+                } else {
+                    Object.keys(item.challenges).forEach(i => {
+                        ul.style.backgroundColor = '#AFA';
+                        
+                        var li = document.createElement('li');
+                        
+                        ul.appendChild(li);
+                        li.innerText = i;
+                    });
+                }
             } else {
                 pushTodo(['getAnime', item.mal_id]);
             }
