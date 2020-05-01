@@ -25,6 +25,23 @@ module.exports = function (data, res, cache) {
                 })
                 .then(then);
             break;
+        case 'club':
+            findClub([data.id, data.request])
+                .catch(e => {
+                    console.log('Error: ', url.href);
+                    
+                    return { error: e };
+                })
+                .then(then);
+        /*case 'top':
+            findTop([data.type, data.page, data.subtype])
+                .catch(e => {
+                    console.log('Error: ', url.href);
+                    
+                    return { error: e };
+                })
+                .then(then);
+            break;*/
     }
     
     function then(ret) {
@@ -32,6 +49,42 @@ module.exports = function (data, res, cache) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.write(JSON.stringify(ret));
         res.end();
+    }
+    
+    /*function findTop(args) {
+        url.pathname += '/anime' + `/${args.filter(a => a).join("/")}`;
+        
+        console.log(url.href);
+        
+        if (cache.get(url.href)) {
+            return Promise.delay(0)
+                .then(() => {
+                    return JSON.parse(cache.get(url.href));
+                });
+        } else {
+            return Promise.delay(delay)
+                .then(() => {
+                    return jikan.findTop(args[0], args[1], args[2]);
+                });
+        }
+    }*/
+    
+    function findClub(args) {
+        url.pathname += '/anime' + `/${args.filter(a => a).join("/")}`;
+        
+        console.log(url.href);
+        
+        if (cache.get(url.href)) {
+            return Promise.delay(0)
+                .then(() => {
+                    return JSON.parse(cache.get(url.href));
+                });
+        } else {
+            return Promise.delay(delay)
+                .then(() => {
+                    return jikan.findClub(args[0], args[1]);
+                });
+        }
     }
     
     function findAnime(args) {

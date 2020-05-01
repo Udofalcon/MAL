@@ -6,6 +6,8 @@ var active;
 var requestCount = 0;
 var requestTime = 0;
 var challenges = {};
+var allChallenges;
+var clubs = {};
 
 function next(arg) {
     if (active) {
@@ -56,8 +58,25 @@ function next(arg) {
             li.style.backgroundColor = '#faa';
         }
     } else {
-        return console.log(':)');
+        console.log(':)');
     }
+}
+
+function getClub(id) {
+    var xhr = new XMLHttpRequest();
+    
+    xhr.open('POST', '/jikan', true);
+    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+    xhr.addEventListener('load', () => {
+        var data = JSON.parse(xhr.responseText);
+        
+        clubs[id] = data;
+        updateDisplay(anime);
+    });
+    xhr.send(JSON.stringify({
+        type: 'club',
+        id: id
+    }));
 }
 
 function getAnime(id) {
@@ -123,6 +142,14 @@ function getUserData() {
 }
 
 function updateDisplay(list) {
+    challenges = {
+        'Bronze 1': [],
+        'Bronze 2': [],
+        'Bronze 3': [],
+        'Bronze 4': [],
+        'Bronze 5': []
+    };
+    
     list.forEach(checkChallenges);
     list.sort((a, b) => {
         return isNaN(a.rank) && !isNaN(b.rank) || a.rank > b.rank;
@@ -208,7 +235,7 @@ function updateDisplay(list) {
     
     table.appendChild(tbody);
     
-    list.filter(i => i.watching_status !== 2 && i.rank !== null && !i.error).forEach((item, index) => {
+    list.filter(i => i.watching_status !== 2 && i.rank !== null && i.rank > 0 && i.challenges.length && !i.error).forEach((item, index) => {
         var itemStatus = item.watching_status === 1 ? 'Watching'
             : item.watching_status === 2 ? 'Completed'
             : item.watching_status === 3 ? 'On-Hold'
@@ -295,63 +322,86 @@ function updateDisplay(list) {
         
         td5.appendChild(ul);
         
-        if (Object.keys(item.challenges).length) {
-            var preReqs = [];
-            
-            if (item.related && item.aired && item.aired.from) {
-                Object.keys(item.related).forEach(type => {
-                    item.related[type].forEach(t => {
-                        if (t.type === "anime") {
-                            if (animeById[t.mal_id] && animeById[t.mal_id].aired && animeById[t.mal_id].aired.from) {
-                                if (new Date(animeById[t.mal_id].aired.from) < new Date(item.aired.from)) {
-                                    preReqs.push(animeById[t.mal_id]);
-                                }
-                            } else if (!animeById[t.mal_id] || !animeById[t.mal_id].error) {
-                                pushTodo(['getAnime', t.mal_id]);
+        var preReqs = [];
+        
+        if (item.related && item.aired && item.aired.from) {
+            Object.keys(item.related).forEach(type => {
+                item.related[type].forEach(t => {
+                    if (t.type === "anime") {
+                        if (animeById[t.mal_id] && animeById[t.mal_id].aired && animeById[t.mal_id].aired.from) {
+                            if (animeById[t.mal_id].watching_status !== 2 && new Date(animeById[t.mal_id].aired.from) < new Date(item.aired.from)) {
+                                preReqs.push(animeById[t.mal_id]);
                             }
+                        } else if (!animeById[t.mal_id] || !animeById[t.mal_id].error) {
+                            pushTodo(['getAnime', t.mal_id]);
                         }
-                    });
+                    }
                 });
-                
-                if (preReqs.length) {
-                    preReqs.forEach(i => {
-                        ul.style.backgroundColor = '#FAA';
-                        
-                        var li = document.createElement('li');
-                        
-                        ul.appendChild(li);
-                        li.innerText = i.title;
-                    });
-                } else {
-                    Object.keys(item.challenges).forEach(i => {
-                        ul.style.backgroundColor = '#AFA';
-                        
-                        var li = document.createElement('li');
-                        
-                        ul.appendChild(li);
-                        li.innerText = i;
-                    });
-                }
+            });
+            
+            if (preReqs.length) {
+                preReqs.forEach(i => {
+                    ul.style.backgroundColor = '#FAA';
+                    
+                    var li = document.createElement('li');
+                    
+                    ul.appendChild(li);
+                    li.innerText = i.title;
+                });
             } else {
-                pushTodo(['getAnime', item.mal_id]);
+                item.challenges.forEach(i => {
+                    ul.style.backgroundColor = '#AFA';
+                    
+                    var li = document.createElement('li');
+                    
+                    ul.appendChild(li);
+                    li.innerText = i;
+                });
             }
+        } else {
+            pushTodo(['getAnime', item.mal_id]);
         }
         
         item.row = tr;
     });
+    
+    allChallenges = true;
+    
+    Object.keys(challenges).forEach(k => {
+        allChallenges &= !!challenges[k].length;
+    });
+    
+    if (!todo.length && !allChallenges) {
+        console.log(challenges);
+    }
     
     active = undefined;
     next();
 }
 
 function checkChallenges(item) {
-    item.challenges = {};
-    challenges = {
-        'Bronze 1': [],
-        'Bronze 2': []
-    };
-    if (item.type === 'ONA') { item.challenges['Bronze 1'] = true; challenges['Bronze 1'].push(item.mal_id); }
-    if (item.episodes >= 10 && getDuration(item.duration) / 60 <= 15) { item.challenges['Bronze 2'] = true; challenges['Bronze 2'].push(item.mal_id); }
+    var noitaminA = [16, 322, 586, 953, 1142, 1592, 1698, 2246, 3001, 3710, 3613, 4021, 4477, 5155, 5630, 6211, 6774, 5690, 7588, 7785, 7724, 8129, 9314, 8426, 10163, 9989, 10162, 10161, 10798, 10793, 12321, 11285, 12531, 12883, 13409, 13585, 13601, 13599, 6594, 16918, 19367, 19365, 19363, 22135, 21561, 23283, 23281, 23273, 23277, 28617, 28619, 28621, 31043, 28623, 32947, 32948, 32949, 30727, 34543, 34542, 34984, 35968, 36649, 37779, 37426, 39533, 39491, 39942, 41120, 6927, 6372, 6637, 11531, 11001, 15039, 21339, 30585, 28725, 28625, 28211, 33519, 33520, 23279, 34537, 34792, 37407, 37440, 37441, 37442, 34544, 38594, 40858];
+    var yatp = [10501, 10016, 10500, 10502, 13169, 13173, 13175, 13171, 13863, 14353, 14349, 14347, 20889, 20903, 20907, 20961, 29513, 29511, 29517, 30922, 30920, 33391, 29515, 30923, 30921, 33388, 33389, 33390, 35681, 35683, 35682, 35680, 38012, 38013, 38014, 38011, 40036, 40035, 40037];
+    
+    item.challenges = [];
+    
+    if (
+        item.duration === undefined ||
+        item.episodes === undefined ||
+        item.type === undefined
+    ) {
+        pushTodo(['getAnime', item.mal_id]);
+    } else if (!clubs[71894] || !clubs[41909] || !clubs[42215]) {
+        pushTodo(['getClub', 71894]);
+        pushTodo(['getClub', 41909]);
+        pushTodo(['getClub', 42215]);
+    } else if (new Date(item.aired.from) < new Date(2020, 0, 1) && (!item.aired.to || new Date(item.aired.to) < new Date(2020, 0, 1))) {    
+        if (item.type === 'ONA') { item.challenges.push('Bronze 1'); challenges['Bronze 1'].push(item.mal_id); }
+        if (item.episodes >= 10 && getDuration(item.duration) / 60 <= 15) { item.challenges.push('Bronze 2'); challenges['Bronze 2'].push(item.mal_id); }
+        if (clubs[71894].anime_relations.filter(a => a.mal_id === item.mal_id).length) { item.challenges.push('Bronze 3'); challenges['Bronze 3'].push(item.mal_id); }
+        if (noitaminA.includes(item.mal_id) || yatp.includes(item.mal_id)) { item.challenges.push('Bronze 4'); challenges['Bronze 4'].push(item.mal_id); }
+        if (clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length) { item.challenges.push('Bronze 5'); challenges['Bronze 5'].push(item.mal_id); }
+    }
 }
 
 function getDuration (str) {
