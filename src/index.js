@@ -448,7 +448,8 @@ function checkChallenges(item) {
         'Bronze 7': a => [user && user.favorites && user.favorites.people && user.favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
         'Bronze 8': a => [user && user.joined && a.aired && a.aired.from && (new Date(user.joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 9': a => [a.aired && a.aired.from && (new Date(a.aired.from)).getFullYear() >= 2016 && (new Date(a.aired.from)).getFullYear() <= 2019, [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 10': a => [a.source && ['Visual novel', 'Light novel'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 10': a => [a.source && ['Visual novel', 'Light novel'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 11': a => [a.source && ['4-koma manga', 'Web manga', 'Digital manga'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]]
     };
     
     Object.keys(criteria).forEach(c => {
