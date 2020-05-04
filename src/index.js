@@ -438,12 +438,13 @@ function updateDisplay(list) {
 function checkChallenges(item) {
     var noitaminA = [16, 322, 586, 953, 1142, 1592, 1698, 2246, 3001, 3710, 3613, 4021, 4477, 5155, 5630, 6211, 6774, 5690, 7588, 7785, 7724, 8129, 9314, 8426, 10163, 9989, 10162, 10161, 10798, 10793, 12321, 11285, 12531, 12883, 13409, 13585, 13601, 13599, 6594, 16918, 19367, 19365, 19363, 22135, 21561, 23283, 23281, 23273, 23277, 28617, 28619, 28621, 31043, 28623, 32947, 32948, 32949, 30727, 34543, 34542, 34984, 35968, 36649, 37779, 37426, 39533, 39491, 39942, 41120, 6927, 6372, 6637, 11531, 11001, 15039, 21339, 30585, 28725, 28625, 28211, 33519, 33520, 23279, 34537, 34792, 37407, 37440, 37441, 37442, 34544, 38594, 40858];
     var yatp = [10501, 10016, 10500, 10502, 13169, 13173, 13175, 13171, 13863, 14353, 14349, 14347, 20889, 20903, 20907, 20961, 29513, 29511, 29517, 30922, 30920, 33391, 29515, 30923, 30921, 33388, 33389, 33390, 35681, 35683, 35682, 35680, 38012, 38013, 38014, 38011, 40036, 40035, 40037];
+    var superhero = [31964, 35262, 33486, 33929, 35459, 36456, 36896, 1349, 1350, 1347, 5036, 5043, 1348, 568, 4810, 1598, 3154, 2389, 3153, 6374, 18229, 23703, 30925, 21039, 4808, 3398, 7088, 8465, 6875, 15847, 598, 1768, 3100, 3923, 6297, 10202, 31116, 2293, 6016, 1336, 1374, 21013, 25457, 34975, 1854, 1835, 3493, 1710, 30276, 31704, 31772, 34134, 5005, 8314, 6582, 3044, 971, 566, 3974, 6380, 5074, 9941, 11099, 12015, 12017, 34009, 35044, 1458, 1459, 2299, 2300, 2301, 1460, 3444, 12851, 10909, 28155, 25749, 1468, 4094, 2383, 3190, 4334, 2525, 33027, 36517, 19365, 567, 34449, 4578, 6918, 4823, 6919, 11837, 24269, 35219, 37249, 6375, 8196, 29235, 20185, 2747, 17961, 17963, 17959, 30178, 30537, 3672, 30122, 29739];
     var criteria = {
         'Bronze 1': a => [a.type && a.type === 'ONA', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 2': a => [a.episodes && a.episodes >= 10 && a.duration && getDuration(a.duration) / 60 <= 15, [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 3': a => [clubs[71894] && clubs[71894].anime_relations && clubs[71894].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[a.rank, 'getClub', 71894]]],
+        'Bronze 3': a => [clubs[71894] && clubs[71894].anime_relations && clubs[71894].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[0, 'getClub', 71894]]],
         'Bronze 4': a => [noitaminA.includes(a.mal_id) || yatp.includes(a.mal_id)],
-        'Bronze 5': a => [clubs[41909] && clubs[41909].anime_relations && clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215] && clubs[42215].anime_relations && clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[a.rank, 'getClub', 41909], [a.rank, 'getClub', 42215]]],
+        'Bronze 5': a => [clubs[41909] && clubs[41909].anime_relations && clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215] && clubs[42215].anime_relations && clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[0, 'getClub', 41909], [0, 'getClub', 42215]]],
         'Bronze 6': a => [a.producers && a.producers.filter(p => producers[p.mal_id] && producers[p.mal_id].anime && producers[p.mal_id].anime.length >= 5 && producers[p.mal_id].anime.length <= 30).length, [[a.rank, 'getAnime', a.mal_id]].concat(a.producers && a.producers.map(p => [a.rank, 'getProducer', p.mal_id]) || [])],
         'Bronze 7': a => [user && user.favorites && user.favorites.people && user.favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
         'Bronze 8': a => [user && user.joined && a.aired && a.aired.from && (new Date(user.joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]],
@@ -455,7 +456,8 @@ function checkChallenges(item) {
         'Bronze 14': a => [a.rank && a.rank > 700 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 15': a => [a.rating && a.rating === 'PG-13 - Teens 13 or older', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 16': a => [a.genres && a.genres.filter(g => ['Ecchi', 'Harem'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 17': a => [a.genres && a.genres.filter(g => ['Mystery', 'Psychological', 'Thriller'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 17': a => [a.genres && a.genres.filter(g => ['Mystery', 'Psychological', 'Thriller'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 18': a => [clubs[22685] && clubs[22685].anime_relations && (superhero.includes(a.mal_id) || clubs[22685].anime_relations.filter(a => a.mal_id === item.mal_id).length), [[0, 'getClub', 22685]]]
     };
     
     Object.keys(criteria).forEach(c => {
