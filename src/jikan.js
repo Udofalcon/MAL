@@ -7,6 +7,11 @@ module.exports = function (data, res, cache) {
     const url = new URL('https://api.jikan.moe/v3');
 
     switch(data.type) {
+        case 'cachebust':
+            cache.del(data.key);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end();
+            break;
         case 'anime':
             findAnime([data.id, data.request, data.page])
                 .catch(e => {
@@ -33,15 +38,25 @@ module.exports = function (data, res, cache) {
                     return { error: e };
                 })
                 .then(then);
-        /*case 'top':
-            findTop([data.type, data.page, data.subtype])
+            break;
+        case 'producer':
+            findProducer([data.id, data.page])
                 .catch(e => {
                     console.log('Error: ', url.href);
                     
                     return { error: e };
                 })
                 .then(then);
-            break;*/
+            break;
+        case 'person':
+            findPerson([data.id, data.request])
+                .catch(e => {
+                    console.log('Error: ', url.href);
+                    
+                    return { error: e };
+                })
+                .then(then);
+            break;
     }
     
     function then(ret) {
@@ -51,8 +66,8 @@ module.exports = function (data, res, cache) {
         res.end();
     }
     
-    /*function findTop(args) {
-        url.pathname += '/anime' + `/${args.filter(a => a).join("/")}`;
+    function findPerson(args) {
+        url.pathname += '/person' + `/${args.filter(a => a).join("/")}`;
         
         console.log(url.href);
         
@@ -64,13 +79,31 @@ module.exports = function (data, res, cache) {
         } else {
             return Promise.delay(delay)
                 .then(() => {
-                    return jikan.findTop(args[0], args[1], args[2]);
+                    return jikan.findPerson(args[0], args[1]);
                 });
         }
-    }*/
+    }
+    
+    function findProducer(args) {
+        url.pathname += '/producer' + `/${args.filter(a => a).join("/")}`;
+        
+        console.log(url.href);
+        
+        if (cache.get(url.href)) {
+            return Promise.delay(0)
+                .then(() => {
+                    return JSON.parse(cache.get(url.href));
+                });
+        } else {
+            return Promise.delay(delay)
+                .then(() => {
+                    return jikan.findProducer(args[0], args[1]);
+                });
+        }
+    }
     
     function findClub(args) {
-        url.pathname += '/anime' + `/${args.filter(a => a).join("/")}`;
+        url.pathname += '/club' + `/${args.filter(a => a).join("/")}`;
         
         console.log(url.href);
         
@@ -128,4 +161,18 @@ module.exports = function (data, res, cache) {
                 });
         }
     }
+}
+
+function cachebust() {
+    var xhr = new XMLHttpRequest();
+    
+    xhr.open('POST', '/jikan', true);
+    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+    xhr.addEventListener('load', () => {
+        console.log(xhr.responseText);
+    });
+    xhr.send(JSON.stringify({
+        type: 'cachebust',
+        key: 'https://api.jikan.moe/v3/anime/597'
+    }));
 }

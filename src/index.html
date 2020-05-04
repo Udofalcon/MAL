@@ -7,7 +7,10 @@
     <body>
         <label for="Username">Username</label>
         <input id="Username" />
-        <button onclick="next(['getUserData'])">Go</button>
+        <button onclick="init()">Go</button>
+        <input type="checkbox" onclick="toggleSize()" checked />
+        <label id="queryAll">All</label>
+        <div id="progress"></div>
         <ol id="todo"></ol>
         <table id="Anime">
             <tbody></tbody>
