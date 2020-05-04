@@ -454,7 +454,8 @@ function checkChallenges(item) {
         'Bronze 13': a => [a.score && a.score >= 8.00 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 14': a => [a.rank && a.rank > 700 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 15': a => [a.rating && a.rating === 'PG-13 - Teens 13 or older', [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 16': a => [a.genres && a.genres.filter(g => ['Ecchi', 'Harem'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 16': a => [a.genres && a.genres.filter(g => ['Ecchi', 'Harem'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 17': a => [a.genres && a.genres.filter(g => ['Mystery', 'Psychological', 'Thriller'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]]
     };
     
     Object.keys(criteria).forEach(c => {
