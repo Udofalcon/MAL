@@ -446,7 +446,8 @@ function checkChallenges(item) {
         'Bronze 5': a => [clubs[41909] && clubs[41909].anime_relations && clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215] && clubs[42215].anime_relations && clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[a.rank, 'getClub', 41909], [a.rank, 'getClub', 42215]]],
         'Bronze 6': a => [a.producers && a.producers.filter(p => producers[p.mal_id] && producers[p.mal_id].anime && producers[p.mal_id].anime.length >= 5 && producers[p.mal_id].anime.length <= 30).length, [[a.rank, 'getAnime', a.mal_id]].concat(a.producers && a.producers.map(p => [a.rank, 'getProducer', p.mal_id]) || [])],
         'Bronze 7': a => [user && user.favorites && user.favorites.people && user.favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
-        'Bronze 8': a => [user && user.joined && a.aired && a.aired.from && (new Date(user.joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 8': a => [user && user.joined && a.aired && a.aired.from && (new Date(user.joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 9': a => [a.aired && a.aired.from && (new Date(a.aired.from)).getFullYear() >= 2016 && (new Date(a.aired.from)).getFullYear() <= 2019, [[a.rank, 'getAnime', a.mal_id]]]
     };
     
     Object.keys(criteria).forEach(c => {
