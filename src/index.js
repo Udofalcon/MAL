@@ -452,7 +452,8 @@ function checkChallenges(item) {
         'Bronze 11': a => [a.source && ['4-koma manga', 'Web manga', 'Digital manga'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 12': a => [a.source && a.source === 'Original', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 13': a => [a.score && a.score >= 8.00 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 14': a => [a.rank && a.rank > 700 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 14': a => [a.rank && a.rank > 700 && a.duration && getDuration(a.duration) / 60 >= 16, [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 15': a => [a.rating && a.rating === 'PG-13 - Teens 13 or older', [[a.rank, 'getAnime', a.mal_id]]]
     };
     
     Object.keys(criteria).forEach(c => {
