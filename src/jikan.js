@@ -139,7 +139,7 @@ module.exports = function (data, res, cache) {
     }
 
     function findUser(args, param) {
-        url.pathname += '/username' + `/${args.filter(a => a).join("/")}`;
+        url.pathname += '/user' + `/${args.filter(a => a).join("/")}`;
         
         for (let p in param) {
             if (param[p]) {

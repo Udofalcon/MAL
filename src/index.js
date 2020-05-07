@@ -10,14 +10,22 @@ var allChallenges;
 var clubs = {};
 var producers = {};
 var queryAll = true;
-var user;
+var users = {};
 var criteria = {}
 var people = {};
+var activeUser;
+var apiCallStats = {
+    count: 0,
+    time: 0,
+    total: 0,
+    interval: null
+};
 
 function init(username) {
     var username = document.getElementById('Username').value;
     
-    next([0, 'getUserProfile', username]);
+    anime = [];
+    next([0, 'getUserProfile', username, true]);
 }
 
 function next(arg) {
@@ -51,12 +59,37 @@ function next(arg) {
         });
     });
     
+    var colors = {
+        getUserProfile: '#FF9AA2',
+        getUserData: '#FFB7B2',
+        getAnime: '#FFDAC1',
+        getClub: '#E2F0CB',
+        getProducer: '#B5EAD7',
+        getPerson: '#C7CEEA'
+    };
+    var progress = document.getElementById('progress');
+    
+    while (progress.firstChild) {
+        progress.removeChild(progress.firstChild);
+    }
+    
+    todo.forEach(i => {
+        var span = document.createElement('span');
+        
+        progress.appendChild(span);
+        span.style.display = 'inline-block';
+        span.style.backgroundColor = colors[i[1]];
+        span.style.width = '1em';
+        span.style.height = '1em';
+        
+        if (!colors[i[1]]) console.log(i[1]);
+    });
+    
     active = todo.shift();
     
     if (active) {
         var rank = active.shift();
         var func = active.shift();
-        var progress = document.getElementById('progress');
         
         allChallenges = rank !== 0;
     
@@ -66,77 +99,91 @@ function next(arg) {
         
         if (allChallenges) {
             active = null;
-            progress.removeChild(progress.firstChild);
             
             return next();
         }
         
         window[func](...active);
         done.push([rank, func, ...active]);
-        progress.removeChild(progress.firstChild);
     } else {
+        document.getElementById('time').innerText = '';
         console.log(':)');
     }
 }
 
-function getPerson(id) {
+function jikanXhr(data, cb) {
     var xhr = new XMLHttpRequest();
+    var start = Date.now();
     
     xhr.open('POST', '/jikan', true);
     xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
     xhr.addEventListener('load', () => {
-        var data = JSON.parse(xhr.responseText);
+        cb(JSON.parse(xhr.responseText));
+        apiCallStats.count++;
+        apiCallStats.time += Date.now() - start;
+        document.getElementById('time').innerText = apiCallStats.count + '/' + apiCallStats.total + ' | ' + displayTime(Math.round(apiCallStats.time / apiCallStats.count * (apiCallStats.total - apiCallStats.count))) + ' remaining';
+    });
+    xhr.send(JSON.stringify(data));
+    
+    function displayTime(milliseconds) {
+        var seconds = 0;
+        var minutes = 0;
+        var hours = 0;
         
+        while (milliseconds >= 1000 * 60 * 60) {
+            hours++;
+            milliseconds -= 1000 * 60 * 60;
+        }
+        
+        while (milliseconds >= 1000 * 60) {
+            minutes++;
+            milliseconds -= 1000 * 60;
+        }
+        
+        while (milliseconds > 0) {
+            seconds++;
+            milliseconds -= 1000;
+        }
+        
+        return (hours > 9 ? '' : '0') + hours + ':' + (minutes > 9 ? '' : '0') + minutes + ':' + (seconds > 9 ? '' : '0') + seconds;
+    }
+}
+
+function getPerson(id) {
+    jikanXhr({
+        type: 'person',
+        id: id
+    }, (data) => {
         people[id] = data;
         updateData(anime);
     });
-    xhr.send(JSON.stringify({
-        type: 'person',
-        id: id
-    }));
 }
 
 function getProducer(id) {
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        var data = JSON.parse(xhr.responseText);
-        
+    jikanXhr({
+        type: 'producer',
+        id: id
+    }, (data) => {
         producers[id] = data;
         updateData(anime);
     });
-    xhr.send(JSON.stringify({
-        type: 'producer',
-        id: id
-    }));
 }
 
 function getClub(id) {
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        var data = JSON.parse(xhr.responseText);
-        
+    jikanXhr({
+        type: 'club',
+        id: id
+    }, (data) => {
         clubs[id] = data;
         updateData(anime);
     });
-    xhr.send(JSON.stringify({
-        type: 'club',
-        id: id
-    }));
 }
 
 function getAnime(id) {
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        var data = JSON.parse(xhr.responseText);
+    jikanXhr({
+        type: 'anime',
+        id: id
+    }, (data) => {
         var curr = animeById[data.mal_id];
         var index = curr && anime.indexOf(curr) || -1;
                 
@@ -149,63 +196,53 @@ function getAnime(id) {
         
         updateData(anime);
     });
-    xhr.send(JSON.stringify({
-        type: 'anime',
-        id: id
-    }));
 }
 
-function getUserData(username, request, data, params) {
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        var data = JSON.parse(xhr.responseText);
-        
-        data.anime.forEach(a => {
-            anime.push(a);
-            animeById[a.mal_id] = a;
-            
-            if (a.watching_status !== 2) {
-                pushTodo([0, 'getAnime', a.mal_id]);
-            }
-        });
-        
-        updateData(anime);
-    });
-    xhr.send(JSON.stringify({
+function getUserData(username, request, data, params, currentUser) {
+    jikanXhr({
         type: 'user',
         username: username,
         request: request,
         data: data,
         params: params
-    }));
-}
-
-function getUserProfile(username) {
-    anime = [];
-    
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        user = JSON.parse(xhr.responseText);
-        
-        for (var page = 0; page * 300 < user.anime_stats.total_entries; page++) {
-            pushTodo([0, 'getUserData', username, 'animelist', 'all', { page: page + 1 }]);
+    }, (data) => {
+        if (currentUser) {
+            data.anime.forEach(a => {
+                anime.push(a);
+                animeById[a.mal_id] = a;
+                
+                if (a.watching_status !== 2) {
+                    pushTodo([0, 'getAnime', a.mal_id]);
+                }
+            });
         }
         
-        user.favorites.people.forEach(p => pushTodo([0, 'getPerson', p.mal_id]));
-        
+        users[username].animelist = (users[username].animelist || []).concat(data.anime);
         updateData(anime);
     });
-    xhr.send(JSON.stringify({
+}
+
+function getUserProfile(username, currentUser) {
+    jikanXhr({
         type: 'user',
         username: username,
         request: 'profile'
-    }));
+    }, (data) => {
+        if (currentUser) {
+            activeUser = username;
+        }
+        
+        for (var page = 0; page * 300 < data.anime_stats.total_entries; page++) {
+            pushTodo([0, 'getUserData', username, 'animelist', 'all', { page: page + 1 }, currentUser]);
+        }
+        
+        if (currentUser) {
+            data.favorites.people.forEach(p => pushTodo([0, 'getPerson', p.mal_id]));
+        }
+        
+        users[username] = data;
+        updateData(anime);
+    });
 }
 
 function updateData(list) {
@@ -219,7 +256,7 @@ function updateData(list) {
         .filter(a => a.aired)
         .filter(a => new Date(a.aired.from) < new Date(2020, 0, 1))
         .filter(a => !a.aired.to || new Date(a.aired.to) < new Date(2020, 0, 1));
-    list.sort((a, b) => a.rank > b.rank);
+    list.sort((a, b) => a.rank - b.rank);
     list.forEach(a => {
         var checking = a.prerequisites = false;
         
@@ -256,7 +293,7 @@ function updateData(list) {
     
     updateDisplay(list);
     
-    todo.sort((a, b) => a[0] > b[0]);
+    todo.sort((a, b) => a[0] - b[0]);
 
     active = undefined;
     next();
@@ -441,6 +478,7 @@ function checkChallenges(item) {
     var superhero = [31964, 35262, 33486, 33929, 35459, 36456, 36896, 1349, 1350, 1347, 5036, 5043, 1348, 568, 4810, 1598, 3154, 2389, 3153, 6374, 18229, 23703, 30925, 21039, 4808, 3398, 7088, 8465, 6875, 15847, 598, 1768, 3100, 3923, 6297, 10202, 31116, 2293, 6016, 1336, 1374, 21013, 25457, 34975, 1854, 1835, 3493, 1710, 30276, 31704, 31772, 34134, 5005, 8314, 6582, 3044, 971, 566, 3974, 6380, 5074, 9941, 11099, 12015, 12017, 34009, 35044, 1458, 1459, 2299, 2300, 2301, 1460, 3444, 12851, 10909, 28155, 25749, 1468, 4094, 2383, 3190, 4334, 2525, 33027, 36517, 19365, 567, 34449, 4578, 6918, 4823, 6919, 11837, 24269, 35219, 37249, 6375, 8196, 29235, 20185, 2747, 17961, 17963, 17959, 30178, 30537, 3672, 30122, 29739];
     var gourmet = [110, 39194, 31636, 36049, 29722, 32010, 16918, 19363, 34290, 35206, 37051, 34402, 35818, 3437, 25053, 3001, 13409, 8848, 8842, 35484, 37826, 8958, 22593, 28171, 31327, 32282, 34480, 35788, 36949, 39940, 9561, 32875, 5005, 6582, 10033, 6941, 10074, 17699, 6586, 8894, 9441, 32828, 1589, 10396, 25839, 39856, 3962, 24901, 27785, 40100, 1778, 37033, 40204, 2287, 39620, 36622, 35235, 24321, 32349, 34420, 34012, 31578, 36754, 580, 24629, 40194, 35858, 36113, 7261, 37618, 36578, 37145, 1738, 3535, 34658, 31498, 9798, 33122, 33447, 38412, 35298, 5984, 36513, 30088, 33734, 4021, 38957, 12367, 12815, 25049, 31633, 2388, 36108, 30437, 28];
     var isekai = ['.hack//Sign', '"Eiyuu" Kaitai', 'Arifureta Shokugyou de Sekai Saikyou', 'Byston Well Monogatari: Garzey no Tsubasa', 'Carol', 'Chou Mashin Eiyuuden Wataru', 'Choujikuu Seiki Orguss', 'Choujin Koukousei-tachi wa Isekai demo Yoyuu de Ikinuku You Desu!', 'Conception', 'Death March kara Hajimaru Isekai Kyousoukyoku', 'Digimon Adventure', 'Dog Days', 'Dog Days`', 'Dog Days``', 'Douluo Dalu', 'Drifters', 'Dual! Parallel Runrun Monogatari', 'El-Hazard: The Magnificent World', 'El-Hazard: The Magnificent World 2', 'Elf o Karu Mono-tachi', 'Elf o Karu Mono-tachi II', 'Escaflowne', 'Fushigi Yuugi', 'Gate: Jieitai Kanochi nite, Kaku Tatakaeri', 'Gate: Jieitai Kanochi nite, Kaku Tatakaeri (2016)', 'Gekijouban Soushuuhen Overlord', 'Genmu Senki Leda', 'God Mazinger', 'Guda Men', 'Hachi-nantte, Sore wa Nai Deshou!', 'Hai to Gensou no Grimgar', 'Hataage! Kemono Michi', 'Hataraku Maou-sama!', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen - Eustachius no Shitamachi Sennyuu Daisakusen / Corinna-sama no Otaku Houmon', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen (2020)', 'Hyakuren no Haou to Seiyaku no Valkyria', 'Ijigen no Sekai El-Hazard', 'Ima, Soko ni Iru Boku', 'Inuyasha', 'Isekai Cheat Magician', 'Isekai Maou to Shoukan Shoujo no Dorei Majutsu', 'Isekai no Seikishi Monogatari', 'Isekai Quartet', 'Isekai Quartet 2', 'Isekai wa Smartphone to Tomo ni.', 'Ixion Saga: Dimension Transfer', 'Juuni Kokuki', 'Kenja no Mago', 'Knight`s & Magic', 'Kono Subarashii Sekai ni Shukufuku o!', 'Kono Subarashii Sekai ni Shukufuku o! 2', 'Kono Subarashii Sekai ni Shukufuku o! 2: Kono Subarashii Geijutsu ni Shukufuku o!', 'Kono Subarashii Sekai ni Shukufuku o! Kono Subarashii Choker ni Shukufuku o!', 'Kono Yo no Hate de Koi o Utau Shoujo Yu-no', 'Laidbackers', 'Log Horizon', 'Log Horizon (2014)', 'Magic Knight Rayearth', 'Mahou Shoujo Tai Arusu', 'Mahou Shoujo Tai Arusu (2007)', 'Mairimashita! Iruma-kun', 'Maou-sama, Retry!', 'Mashin Eiyuuden Wataru', 'Maze Bakunetsu Jikuu', 'Maze Bakunetsu Jikuu (1997)', 'Mondaiji-tachi ga Isekai kara Kurusou Desu yo?', 'Mondaiji-tachi ga Isekai kara Kurusou Desu yo?: Onsen Man`yuuki', 'Mushoku Tensei: Isekai Ittara Honki Dasu', 'Naka no Hito Genome [Jikkyouchuu]', 'NG Knight Ramune & 40', 'Ni no Kuni', 'Nidome no Jinsei o Isekai de', 'No Game No Life', 'Otome Game no Hametsu Flag shika Nai Akuyaku Reijou ni Tensei Shiteshimatta...', 'Outbreak Company', 'Overlord', 'Overlord II', 'Overlord III', 'Princess Connect! Re:Dive', 'Quanzhi Fashi', 'Quanzhi Fashi 2', 'Quanzhi Fashi 3', 'Re:Zero kara Hajimeru Isekai Seikatsu', 'Seisenshi Dunbine', 'Sen to Chihiro no Kamikakushi', 'Sengoku Night Blood', 'Shen Po', 'Shinchou Yuusha: Kono Yuusha ga Ore Tsueee Kuse ni Shinchou Sugiru', 'Shinpi no Sekai El-Hazard TV', 'Strange Dawn', 'Super Mario Brothers: Peach-hime Kyuushutsu Daisakusen!', 'Sword Art Online', 'Sword Art Online: Alicization', 'Sword Art Online: Alicization - War of Underworld', 'Sword Art Online: Extra Edition', 'Tate no Yuusha no Nariagari', 'Tenkuu no Escaflowne', 'Tensei Shitara Slime Datta Ken', 'Tobira o Akete', 'Tsuujou Kougeki ga Zentai Kougeki de Nikai Kougeki no Okaasan wa Suki Desuka?', 'Watashi, Nouryoku wa Heikinchi de tte Itta yo ne!', 'Youjo Senki', 'Youjo Senki (2019)', 'Zero no Tsukaima', 'Zero no Tsukaima F', 'Zero no Tsukaima: Futatsuki no Kishi', 'Zero no Tsukaima: Princesses no Rondo'];
+    var bronze20 = ['AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'SheyCroix', 'Aeradae', 'bigdud24', 'BeanChagBear', 'Kaylee_', 'CureEtude', 'dierubikdie', 'Lestat-', 'mozgow', 'Ranacchi', 'Doougii', 'Yuki-Chan276', 'KuraikoDesu', 'Tubbyman', 'csachick1', 'Stripes', 'MikhailTheGreat', 'tbeans10', 'cappuccinoangel', 'serfe', 'tretij', 'TuyNOM', 'hinagatari', 'Yamcha17', 'BountyBlues', 'Devil_sorrow', 'Natsuaki', 'Yksiloituminen', 'Aveks', 'Typhlame', 'Neko-Hoshishima', 'anthony6425', 'Jhiday', 'Salyee', 'josephyhu', 'Brati', 'Gailo', 'CMYK', 'evofox', 'eff-fume', 'Schlopsi', 'Deskbot000', 'tounho', 'ScarletCelestial', 'ManuelB87', 'boredrandomguy', 'Clover', 'NaineLIEz', 'sdjuuv', 'Thedarkaxe', 'Unoriginal_X2', 'Jaikeis', 'HrzGoose', 'arderine', 'Jewgeni', 'Imyreld', 'andyret26', 'Dragonas77', 'zimmercj', 'p_g_adi', 'kanibalizm', 'ElmoNoddyPeach', 'Ph0esz', 'Ks_rai', 'lowaltitude', 'leapylee', 'MathValim', 'SamCur', 'Animated_Amateur', 'Eo_nia', 'ShockZz', 'JankesS', 'lostnyanko', 'Chromatus', 'zombieoil2', 'jkasumi', 'Dysp', 'Titadou', 'MartialTie', 'tamochinnn', 'Christopherer', 'Hacker_4chan', 'Takkuria', 'sunsunny', 'Jusilver', 'Hackser_', 'toxif', 'starfishalliance'];
     var criteria = {
         'Bronze 1': a => [a.type && a.type === 'ONA', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 2': a => [a.episodes && a.episodes >= 10 && a.duration && getDuration(a.duration) / 60 <= 15, [[a.rank, 'getAnime', a.mal_id]]],
@@ -448,8 +486,8 @@ function checkChallenges(item) {
         'Bronze 4': a => [noitaminA.includes(a.mal_id) || yatp.includes(a.mal_id)],
         'Bronze 5': a => [clubs[41909] && clubs[41909].anime_relations && clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215] && clubs[42215].anime_relations && clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[0, 'getClub', 41909], [0, 'getClub', 42215]]],
         'Bronze 6': a => [a.producers && a.producers.filter(p => producers[p.mal_id] && producers[p.mal_id].anime && producers[p.mal_id].anime.length >= 5 && producers[p.mal_id].anime.length <= 30).length, [[a.rank, 'getAnime', a.mal_id]].concat(a.producers && a.producers.map(p => [a.rank, 'getProducer', p.mal_id]) || [])],
-        'Bronze 7': a => [user && user.favorites && user.favorites.people && user.favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
-        'Bronze 8': a => [user && user.joined && a.aired && a.aired.from && (new Date(user.joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 7': a => [users[activeUser] && users[activeUser].favorites && users[activeUser].favorites.people && users[activeUser].favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
+        'Bronze 8': a => [users[activeUser] && users[activeUser].joined && a.aired && a.aired.from && (new Date(users[activeUser].joined)).getFullYear() === (new Date(a.aired.from)).getFullYear(), [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 9': a => [a.aired && a.aired.from && (new Date(a.aired.from)).getFullYear() >= 2016 && (new Date(a.aired.from)).getFullYear() <= 2019, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 10': a => [a.source && ['Visual novel', 'Light novel'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 11': a => [a.source && ['4-koma manga', 'Web manga', 'Digital manga'].includes(a.source), [[a.rank, 'getAnime', a.mal_id]]],
@@ -460,7 +498,8 @@ function checkChallenges(item) {
         'Bronze 16': a => [a.genres && a.genres.filter(g => ['Ecchi', 'Harem'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 17': a => [a.genres && a.genres.filter(g => ['Mystery', 'Psychological', 'Thriller'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 18': a => [clubs[22685] && clubs[22685].anime_relations && (superhero.includes(a.mal_id) || clubs[22685].anime_relations.filter(a => a.mal_id === item.mal_id).length), [[0, 'getClub', 22685]]],
-        'Bronze 19': a => [gourmet.includes(a.mal_id) || isekai.includes(a.title), [[a.rank, 'getAnime', a.mal_id]]]
+        'Bronze 19': a => [gourmet.includes(a.mal_id) || isekai.includes(a.title), [[a.rank, 'getAnime', a.mal_id]]],
+        'Bronze 20': a => [bronze20.map(p => users[p] && users[p].anime_stats && users[p].anime_stats.total_entries && users[p].animelist && users[p].animelist.length === users[p].anime_stats.total_entries && users[p].animelist.filter(a => a.mal_id === item.mal_id)).filter(p => p && p.length).length, [...bronze20.map(p => [0, 'getUserProfile', p, false])]]
     };
     
     Object.keys(criteria).forEach(c => {
@@ -487,16 +526,6 @@ function checkChallenges(item) {
 
 function pushTodo(item) {
     var exists = false;
-    var colors = {
-        getUserProfile: '#FF9AA2',
-        getUserData: '#FFB7B2',
-        getAnime: '#FFDAC1',
-        getClub: '#E2F0CB',
-        getProducer: '#B5EAD7'//,
-        //'#C7CEEA'
-    };
-    var progress = document.getElementById('progress');
-    
     
     for (var r = 0; r < done.length && !exists; r++) {
         var same = true;
@@ -519,13 +548,7 @@ function pushTodo(item) {
     }
     
     if (!exists) {
-        var span = document.createElement('span');
-        
-        progress.appendChild(span);
-        span.style.display = 'inline-block';
-        span.style.backgroundColor = colors[item[1]];
-        span.style.width = '1em';
-        span.style.height = '1em';
+        apiCallStats.total++;
         todo.push(item);
     }
 }
