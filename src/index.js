@@ -21,7 +21,7 @@ var apiCallStats = {
     interval: null
 };
 
-function init(username) {
+function init() {
     var username = document.getElementById('Username').value;
     
     anime = [];
@@ -91,7 +91,7 @@ function next(arg) {
         var rank = active.shift();
         var func = active.shift();
         
-        allChallenges = rank !== 0;
+        allChallenges = rank !== 0 && !queryAll;
     
         Object.keys(challenges).forEach(c => {
             allChallenges &= !!challenges[c].length;
@@ -153,7 +153,7 @@ function getPerson(id) {
     jikanXhr({
         type: 'person',
         id: id
-    }, (data) => {
+    }, data => {
         people[id] = data;
         updateData(anime);
     });
@@ -163,7 +163,7 @@ function getProducer(id) {
     jikanXhr({
         type: 'producer',
         id: id
-    }, (data) => {
+    }, data => {
         producers[id] = data;
         updateData(anime);
     });
@@ -173,27 +173,34 @@ function getClub(id) {
     jikanXhr({
         type: 'club',
         id: id
-    }, (data) => {
+    }, data => {
         clubs[id] = data;
         updateData(anime);
     });
 }
 
-function getAnime(id) {
+function getAnime(id, request, page) {
     jikanXhr({
         type: 'anime',
-        id: id
-    }, (data) => {
-        var curr = animeById[data.mal_id];
+        id: id,
+        request: request,
+        page: page
+    }, data => {
+        var curr = animeById[id];
         var index = curr && anime.indexOf(curr) || -1;
                 
         if (index === -1) {
             anime.push(data);
-        } else {
-            anime[index] = { ...anime[index], ...data };
-            animeById[data.mal_id] = anime[index];
+            index = anime.length - 1;
         }
         
+        if (request) {
+            anime[index][request] = data[request];
+        } else {
+            anime[index] = { ...anime[index], ...data };
+        }
+        
+        animeById[data.mal_id] = anime[index];
         updateData(anime);
     });
 }
@@ -205,7 +212,9 @@ function getUserData(username, request, data, params, currentUser) {
         request: request,
         data: data,
         params: params
-    }, (data) => {
+    }, data => {
+        users[username].currentUser = currentUser;
+        
         if (currentUser) {
             data.anime.forEach(a => {
                 anime.push(a);
@@ -227,7 +236,7 @@ function getUserProfile(username, currentUser) {
         type: 'user',
         username: username,
         request: 'profile'
-    }, (data) => {
+    }, data => {
         if (currentUser) {
             activeUser = username;
         }
@@ -237,6 +246,7 @@ function getUserProfile(username, currentUser) {
         }
         
         if (currentUser) {
+            data.favorites.anime.forEach(a => [[0, 'getAnime', a.mal_id], [0, 'getAnime', a.mal_id, 'recommendations']].forEach(pushTodo));
             data.favorites.people.forEach(p => pushTodo([0, 'getPerson', p.mal_id]));
         }
         
@@ -275,7 +285,8 @@ function updateData(list) {
                         animeById[c.mal_id].watching_status !== 2 &&
                         !animeById[c.mal_id].error &&
                         (!animeById[c.mal_id].aired ||
-                        animeById[c.mal_id].aired.from)) {
+                        !animeById[c.mal_id].aired.from ||
+                        new Date(animeById[c.mal_id].aired.from) < new Date(a.aired.from))) {
                         pushTodo([a.rank, 'getAnime', c.mal_id]);
                         checking = true;
                     }
@@ -473,17 +484,11 @@ function updateDisplay(list) {
 }
 
 function checkChallenges(item) {
-    var noitaminA = [16, 322, 586, 953, 1142, 1592, 1698, 2246, 3001, 3710, 3613, 4021, 4477, 5155, 5630, 6211, 6774, 5690, 7588, 7785, 7724, 8129, 9314, 8426, 10163, 9989, 10162, 10161, 10798, 10793, 12321, 11285, 12531, 12883, 13409, 13585, 13601, 13599, 6594, 16918, 19367, 19365, 19363, 22135, 21561, 23283, 23281, 23273, 23277, 28617, 28619, 28621, 31043, 28623, 32947, 32948, 32949, 30727, 34543, 34542, 34984, 35968, 36649, 37779, 37426, 39533, 39491, 39942, 41120, 6927, 6372, 6637, 11531, 11001, 15039, 21339, 30585, 28725, 28625, 28211, 33519, 33520, 23279, 34537, 34792, 37407, 37440, 37441, 37442, 34544, 38594, 40858];
-    var yatp = [10501, 10016, 10500, 10502, 13169, 13173, 13175, 13171, 13863, 14353, 14349, 14347, 20889, 20903, 20907, 20961, 29513, 29511, 29517, 30922, 30920, 33391, 29515, 30923, 30921, 33388, 33389, 33390, 35681, 35683, 35682, 35680, 38012, 38013, 38014, 38011, 40036, 40035, 40037];
-    var superhero = [31964, 35262, 33486, 33929, 35459, 36456, 36896, 1349, 1350, 1347, 5036, 5043, 1348, 568, 4810, 1598, 3154, 2389, 3153, 6374, 18229, 23703, 30925, 21039, 4808, 3398, 7088, 8465, 6875, 15847, 598, 1768, 3100, 3923, 6297, 10202, 31116, 2293, 6016, 1336, 1374, 21013, 25457, 34975, 1854, 1835, 3493, 1710, 30276, 31704, 31772, 34134, 5005, 8314, 6582, 3044, 971, 566, 3974, 6380, 5074, 9941, 11099, 12015, 12017, 34009, 35044, 1458, 1459, 2299, 2300, 2301, 1460, 3444, 12851, 10909, 28155, 25749, 1468, 4094, 2383, 3190, 4334, 2525, 33027, 36517, 19365, 567, 34449, 4578, 6918, 4823, 6919, 11837, 24269, 35219, 37249, 6375, 8196, 29235, 20185, 2747, 17961, 17963, 17959, 30178, 30537, 3672, 30122, 29739];
-    var gourmet = [110, 39194, 31636, 36049, 29722, 32010, 16918, 19363, 34290, 35206, 37051, 34402, 35818, 3437, 25053, 3001, 13409, 8848, 8842, 35484, 37826, 8958, 22593, 28171, 31327, 32282, 34480, 35788, 36949, 39940, 9561, 32875, 5005, 6582, 10033, 6941, 10074, 17699, 6586, 8894, 9441, 32828, 1589, 10396, 25839, 39856, 3962, 24901, 27785, 40100, 1778, 37033, 40204, 2287, 39620, 36622, 35235, 24321, 32349, 34420, 34012, 31578, 36754, 580, 24629, 40194, 35858, 36113, 7261, 37618, 36578, 37145, 1738, 3535, 34658, 31498, 9798, 33122, 33447, 38412, 35298, 5984, 36513, 30088, 33734, 4021, 38957, 12367, 12815, 25049, 31633, 2388, 36108, 30437, 28];
-    var isekai = ['.hack//Sign', '"Eiyuu" Kaitai', 'Arifureta Shokugyou de Sekai Saikyou', 'Byston Well Monogatari: Garzey no Tsubasa', 'Carol', 'Chou Mashin Eiyuuden Wataru', 'Choujikuu Seiki Orguss', 'Choujin Koukousei-tachi wa Isekai demo Yoyuu de Ikinuku You Desu!', 'Conception', 'Death March kara Hajimaru Isekai Kyousoukyoku', 'Digimon Adventure', 'Dog Days', 'Dog Days`', 'Dog Days``', 'Douluo Dalu', 'Drifters', 'Dual! Parallel Runrun Monogatari', 'El-Hazard: The Magnificent World', 'El-Hazard: The Magnificent World 2', 'Elf o Karu Mono-tachi', 'Elf o Karu Mono-tachi II', 'Escaflowne', 'Fushigi Yuugi', 'Gate: Jieitai Kanochi nite, Kaku Tatakaeri', 'Gate: Jieitai Kanochi nite, Kaku Tatakaeri (2016)', 'Gekijouban Soushuuhen Overlord', 'Genmu Senki Leda', 'God Mazinger', 'Guda Men', 'Hachi-nantte, Sore wa Nai Deshou!', 'Hai to Gensou no Grimgar', 'Hataage! Kemono Michi', 'Hataraku Maou-sama!', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen - Eustachius no Shitamachi Sennyuu Daisakusen / Corinna-sama no Otaku Houmon', 'Honzuki no Gekokujou: Shisho ni Naru Tame ni wa Shudan o Erande Iraremasen (2020)', 'Hyakuren no Haou to Seiyaku no Valkyria', 'Ijigen no Sekai El-Hazard', 'Ima, Soko ni Iru Boku', 'Inuyasha', 'Isekai Cheat Magician', 'Isekai Maou to Shoukan Shoujo no Dorei Majutsu', 'Isekai no Seikishi Monogatari', 'Isekai Quartet', 'Isekai Quartet 2', 'Isekai wa Smartphone to Tomo ni.', 'Ixion Saga: Dimension Transfer', 'Juuni Kokuki', 'Kenja no Mago', 'Knight`s & Magic', 'Kono Subarashii Sekai ni Shukufuku o!', 'Kono Subarashii Sekai ni Shukufuku o! 2', 'Kono Subarashii Sekai ni Shukufuku o! 2: Kono Subarashii Geijutsu ni Shukufuku o!', 'Kono Subarashii Sekai ni Shukufuku o! Kono Subarashii Choker ni Shukufuku o!', 'Kono Yo no Hate de Koi o Utau Shoujo Yu-no', 'Laidbackers', 'Log Horizon', 'Log Horizon (2014)', 'Magic Knight Rayearth', 'Mahou Shoujo Tai Arusu', 'Mahou Shoujo Tai Arusu (2007)', 'Mairimashita! Iruma-kun', 'Maou-sama, Retry!', 'Mashin Eiyuuden Wataru', 'Maze Bakunetsu Jikuu', 'Maze Bakunetsu Jikuu (1997)', 'Mondaiji-tachi ga Isekai kara Kurusou Desu yo?', 'Mondaiji-tachi ga Isekai kara Kurusou Desu yo?: Onsen Man`yuuki', 'Mushoku Tensei: Isekai Ittara Honki Dasu', 'Naka no Hito Genome [Jikkyouchuu]', 'NG Knight Ramune & 40', 'Ni no Kuni', 'Nidome no Jinsei o Isekai de', 'No Game No Life', 'Otome Game no Hametsu Flag shika Nai Akuyaku Reijou ni Tensei Shiteshimatta...', 'Outbreak Company', 'Overlord', 'Overlord II', 'Overlord III', 'Princess Connect! Re:Dive', 'Quanzhi Fashi', 'Quanzhi Fashi 2', 'Quanzhi Fashi 3', 'Re:Zero kara Hajimeru Isekai Seikatsu', 'Seisenshi Dunbine', 'Sen to Chihiro no Kamikakushi', 'Sengoku Night Blood', 'Shen Po', 'Shinchou Yuusha: Kono Yuusha ga Ore Tsueee Kuse ni Shinchou Sugiru', 'Shinpi no Sekai El-Hazard TV', 'Strange Dawn', 'Super Mario Brothers: Peach-hime Kyuushutsu Daisakusen!', 'Sword Art Online', 'Sword Art Online: Alicization', 'Sword Art Online: Alicization - War of Underworld', 'Sword Art Online: Extra Edition', 'Tate no Yuusha no Nariagari', 'Tenkuu no Escaflowne', 'Tensei Shitara Slime Datta Ken', 'Tobira o Akete', 'Tsuujou Kougeki ga Zentai Kougeki de Nikai Kougeki no Okaasan wa Suki Desuka?', 'Watashi, Nouryoku wa Heikinchi de tte Itta yo ne!', 'Youjo Senki', 'Youjo Senki (2019)', 'Zero no Tsukaima', 'Zero no Tsukaima F', 'Zero no Tsukaima: Futatsuki no Kishi', 'Zero no Tsukaima: Princesses no Rondo'];
-    var bronze20 = ['AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'AWC_mod', 'SheyCroix', 'Aeradae', 'bigdud24', 'BeanChagBear', 'Kaylee_', 'CureEtude', 'dierubikdie', 'Lestat-', 'mozgow', 'Ranacchi', 'Doougii', 'Yuki-Chan276', 'KuraikoDesu', 'Tubbyman', 'csachick1', 'Stripes', 'MikhailTheGreat', 'tbeans10', 'cappuccinoangel', 'serfe', 'tretij', 'TuyNOM', 'hinagatari', 'Yamcha17', 'BountyBlues', 'Devil_sorrow', 'Natsuaki', 'Yksiloituminen', 'Aveks', 'Typhlame', 'Neko-Hoshishima', 'anthony6425', 'Jhiday', 'Salyee', 'josephyhu', 'Brati', 'Gailo', 'CMYK', 'evofox', 'eff-fume', 'Schlopsi', 'Deskbot000', 'tounho', 'ScarletCelestial', 'ManuelB87', 'boredrandomguy', 'Clover', 'NaineLIEz', 'sdjuuv', 'Thedarkaxe', 'Unoriginal_X2', 'Jaikeis', 'HrzGoose', 'arderine', 'Jewgeni', 'Imyreld', 'andyret26', 'Dragonas77', 'zimmercj', 'p_g_adi', 'kanibalizm', 'ElmoNoddyPeach', 'Ph0esz', 'Ks_rai', 'lowaltitude', 'leapylee', 'MathValim', 'SamCur', 'Animated_Amateur', 'Eo_nia', 'ShockZz', 'JankesS', 'lostnyanko', 'Chromatus', 'zombieoil2', 'jkasumi', 'Dysp', 'Titadou', 'MartialTie', 'tamochinnn', 'Christopherer', 'Hacker_4chan', 'Takkuria', 'sunsunny', 'Jusilver', 'Hackser_', 'toxif', 'starfishalliance'];
     var criteria = {
         'Bronze 1': a => [a.type && a.type === 'ONA', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 2': a => [a.episodes && a.episodes >= 10 && a.duration && getDuration(a.duration) / 60 <= 15, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 3': a => [clubs[71894] && clubs[71894].anime_relations && clubs[71894].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[0, 'getClub', 71894]]],
-        'Bronze 4': a => [noitaminA.includes(a.mal_id) || yatp.includes(a.mal_id)],
+        //-1'Bronze 4': a => [a],
         'Bronze 5': a => [clubs[41909] && clubs[41909].anime_relations && clubs[41909].anime_relations.filter(a => a.mal_id === item.mal_id).length || clubs[42215] && clubs[42215].anime_relations && clubs[42215].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[0, 'getClub', 41909], [0, 'getClub', 42215]]],
         'Bronze 6': a => [a.producers && a.producers.filter(p => producers[p.mal_id] && producers[p.mal_id].anime && producers[p.mal_id].anime.length >= 5 && producers[p.mal_id].anime.length <= 30).length, [[a.rank, 'getAnime', a.mal_id]].concat(a.producers && a.producers.map(p => [a.rank, 'getProducer', p.mal_id]) || [])],
         'Bronze 7': a => [users[activeUser] && users[activeUser].favorites && users[activeUser].favorites.people && users[activeUser].favorites.people.filter(p => people[p.mal_id] && people[p.mal_id].anime_staff_positions && people[p.mal_id].anime_staff_positions.filter(asp => asp.anime && asp.anime.mal_id === a.mal_id).length).length],
@@ -497,9 +502,15 @@ function checkChallenges(item) {
         'Bronze 15': a => [a.rating && a.rating === 'PG-13 - Teens 13 or older', [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 16': a => [a.genres && a.genres.filter(g => ['Ecchi', 'Harem'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
         'Bronze 17': a => [a.genres && a.genres.filter(g => ['Mystery', 'Psychological', 'Thriller'].includes(g.name)).length, [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 18': a => [clubs[22685] && clubs[22685].anime_relations && (superhero.includes(a.mal_id) || clubs[22685].anime_relations.filter(a => a.mal_id === item.mal_id).length), [[0, 'getClub', 22685]]],
-        'Bronze 19': a => [gourmet.includes(a.mal_id) || isekai.includes(a.title), [[a.rank, 'getAnime', a.mal_id]]],
-        'Bronze 20': a => [bronze20.map(p => users[p] && users[p].anime_stats && users[p].anime_stats.total_entries && users[p].animelist && users[p].animelist.length === users[p].anime_stats.total_entries && users[p].animelist.filter(a => a.mal_id === item.mal_id)).filter(p => p && p.length).length, [...bronze20.map(p => [0, 'getUserProfile', p, false])]]
+        //-2'Bronze 18': a => [a],
+        //-3'Bronze 19': a => [a],
+        //-4'Bronze 20': a => [a],
+        //-5'Bronze 21': a => [a],
+        //-6'Bronze 22': a => [a],
+        'Bronze 23': a => [a.title && a.title === a.title.match(/\w+/)[0], [[a.rank, 'getAnime', a.mal_id]]],
+        //-7'Bronze 24': a => [a],
+        'Bronze 25': a => [a.episodes && a.episodes >= 11 && clubs[6498] && clubs[6498].anime_relations && clubs[6498].anime_relations.filter(a => a.mal_id === item.mal_id).length, [[a.rank, 'getAnime', a.mal_id], [0, 'getClub', 6498]]],
+        'Bronze 26': a => [users[activeUser] && users[activeUser].favorites && users[activeUser].favorites.anime && users[activeUser].favorites.anime.map(i => animeById[i.mal_id] && animeById[i.mal_id].recommendations && animeById[i.mal_id].recommendations.filter(r => r.mal_id === a.mal_id).length).filter(i => i).length, [[a.rank, 'getAnime', a.mal_id]]]
     };
     
     Object.keys(criteria).forEach(c => {
@@ -528,7 +539,7 @@ function pushTodo(item) {
     var exists = false;
     
     for (var r = 0; r < done.length && !exists; r++) {
-        var same = true;
+        var same = done[r].length === item.length;
         
         for(var c = 1; c < done[r].length && same; c++) {
             same = done[r][c] === item[c];
@@ -538,7 +549,7 @@ function pushTodo(item) {
     }
     
     for (var r = 0; r < todo.length && !exists; r++) {
-        var same = true;
+        var same = todo[r].length === item.length;
         
         for(var c = 1; c < todo[r].length && same; c++) {
             same = todo[r][c] === item[c];
@@ -557,3 +568,18 @@ function toggleSize() {
     queryAll = !queryAll;
     document.getElementById('queryAll').innerText = queryAll ? 'All' : 'First';
 }
+
+function cachebust(url) {
+    var xhr = new XMLHttpRequest();
+    
+    xhr.open('POST', '/jikan', true);
+    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+    xhr.addEventListener('load', () => {
+        console.log(xhr.responseText);
+    });
+    xhr.send(JSON.stringify({
+        type: 'cachebust',
+        key: url
+    }));
+}
+

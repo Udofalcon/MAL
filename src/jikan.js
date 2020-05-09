@@ -8,6 +8,7 @@ module.exports = function (data, res, cache) {
 
     switch(data.type) {
         case 'cachebust':
+            console.log("Delete: ", data.key);
             cache.del(data.key);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end();
@@ -161,18 +162,4 @@ module.exports = function (data, res, cache) {
                 });
         }
     }
-}
-
-function cachebust() {
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open('POST', '/jikan', true);
-    xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-    xhr.addEventListener('load', () => {
-        console.log(xhr.responseText);
-    });
-    xhr.send(JSON.stringify({
-        type: 'cachebust',
-        key: 'https://api.jikan.moe/v3/anime/597'
-    }));
 }
